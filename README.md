@@ -1,1 +1,12 @@
-# MORALS
+# Analysis of High-Dimensional Robot Controllers via Topological Tools in a Latent Space
+This package implements autoencoders for high-dimensional dynamical systems. It also provides utilities for using the autoencoders to construct a Morse Graph in the learned latent space.
+
+## Installation
+```
+git clone 
+cd MORALS
+pip install -e .
+```
+
+## Usage
+The `examples` directory contains an example of how to collect data and train an autoencoder for a some systems. 
