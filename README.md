@@ -3,7 +3,7 @@ This package implements autoencoders for high-dimensional dynamical systems. It 
 
 ## Installation
 ```
-git clone 
+git clone https://github.com/Ewerton-Vieira/MORALS.git
 cd MORALS
 pip install -e .
 ```
