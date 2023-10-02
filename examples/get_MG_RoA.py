@@ -9,6 +9,7 @@ import argparse
 import dytop.CMGDB_util as CMGDB_util
 import dytop.RoA as RoA
 import dytop.Grid as Grid
+from dytop.PlotRoA import PlotRoA
 import dytop.dyn_tools as dyn_tools
 
 import numpy as np
@@ -55,13 +56,13 @@ def compute_roa(map_graph, morse_graph, lower_bounds, upper_bounds, config, base
 
     if config['low_dims'] == 2:
 
-        # fig, ax = roa.PlotTiles(name_plot=base_name)
+        # fig, ax = roa.PlotRoA(name_plot=base_name)
 
         # plt.savefig(base_name, bbox_inches='tight')
 
         dir_path = os.path.abspath(os.getcwd()) + "/"
 
-        fig, ax = RoA.PlotTiles(lower_bounds, upper_bounds,
+        fig, ax = PlotRoA(lower_bounds, upper_bounds,
                     from_file=base_name, dir_path=dir_path)
 
         out_pic = roa.dir_path + base_name + "_RoA_"
