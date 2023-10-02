@@ -9,7 +9,7 @@ import argparse
 import dytop.CMGDB_util as CMGDB_util
 import dytop.RoA as RoA
 import dytop.Grid as Grid
-import dytop.dyn_tools 
+import dytop.dyn_tools as dyn_tools
 
 import numpy as np
 import matplotlib.pyplot as plt
