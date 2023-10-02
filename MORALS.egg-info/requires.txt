@@ -1,0 +1,11 @@
+numpy
+scipy
+matplotlib
+scikit-learn
+pandas
+seaborn
+tqdm
+torch
+torchvision
+wandb
+CMGDB
