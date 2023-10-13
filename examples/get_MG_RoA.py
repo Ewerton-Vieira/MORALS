@@ -1,8 +1,8 @@
-from src.systems.utils import get_system
-from src.models import *
-from src.dynamics_utils import DynamicsUtils
+from MORALS.systems.utils import get_system
+from MORALS.models import *
+from MORALS.dynamics_utils import DynamicsUtils
 # from MORALS.systems import pendulum
-from src.data_utils import DynamicsDataset
+from MORALS.data_utils import DynamicsDataset
 # from torch.utils.data import DataLoader
 import argparse
 

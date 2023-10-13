@@ -1,14 +1,11 @@
-import src
-from src.systems.utils import get_system
+from MORALS.systems.utils import get_system
 
 import numpy as np
 from tqdm import tqdm
 from torch.utils.data import Dataset
-from src.systems.utils import get_system
+from MORALS.systems.utils import get_system
 import torch
-
 import os
-import sys
 
 class DynamicsDataset(Dataset):
     def __init__(self, config):

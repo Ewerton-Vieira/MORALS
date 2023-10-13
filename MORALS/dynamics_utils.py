@@ -1,9 +1,8 @@
 import numpy as np
 import torch
-import torch.nn as nn
 
-from src.systems.utils import get_system
-from src.models import *
+from MORALS.systems.utils import get_system
+from MORALS.models import *
 
 import os
 

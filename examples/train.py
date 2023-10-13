@@ -1,12 +1,13 @@
-from src.data_utils import DynamicsDataset, LabelsDataset
-from src.models import *
-from src.training import Training, TrainingConfig
+from MORALS.data_utils import DynamicsDataset, LabelsDataset
+from MORALS.models import *
+from MORALS.training import Training, TrainingConfig
 
 import numpy as np
 import scipy
 from tqdm import tqdm
 import pickle
 import argparse
+import torch
 
 from torch.utils.data import DataLoader
 

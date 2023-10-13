@@ -1,10 +1,8 @@
 import numpy as np 
-import torch
-import torch.nn as nn
 
-from src.systems.utils import get_system
+from MORALS.systems.utils import get_system
 from collections import defaultdict
-from src.grid import Grid
+from MORALS.grid import Grid
 
 import os
 

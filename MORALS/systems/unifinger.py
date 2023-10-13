@@ -1,10 +1,8 @@
-import numpy as np 
-from src.systems.system import BaseSystem
+from MORALS.systems.system import BaseSystem
 
-class Humanoid(BaseSystem):
+class Unifinger(BaseSystem):
     def __init__(self,**kwargs):
-        self.name = "humanoid"
-
+        self.name = "trifinger"
         self.state_bounds = NotImplementedError
     
     # def get_true_bounds(self):

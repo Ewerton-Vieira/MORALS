@@ -1,5 +1,5 @@
 import numpy as np 
-from src.systems.system import BaseSystem
+from MORALS.systems.system import BaseSystem
 
 
 class Bistable_Rot(BaseSystem):

@@ -1,4 +1,3 @@
-import torch
 from torch import nn
 
 # TODO: Separate parameters for each model?

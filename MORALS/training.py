@@ -4,7 +4,7 @@ import pickle
 import numpy as np
 from torch import nn
 from tqdm import tqdm
-from src.models import *
+from MORALS.models import *
 
 class TrainingConfig:
     def __init__(self, weights_str):

@@ -1,6 +1,7 @@
-from src.systems.system import BaseSystem
+import numpy as np 
+from MORALS.systems.system import BaseSystem
 
-class Unifinger(BaseSystem):
+class Trifinger(BaseSystem):
     def __init__(self,**kwargs):
         self.name = "trifinger"
         self.state_bounds = NotImplementedError

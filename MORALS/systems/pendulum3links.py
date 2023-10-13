@@ -1,5 +1,5 @@
 import numpy as np 
-from src.systems.system import BaseSystem
+from MORALS.systems.system import BaseSystem
 
 class Pendulum3links(BaseSystem):
     def __init__(self,**kwargs):

@@ -1,5 +1,5 @@
 import numpy as np 
-from src.systems.system import BaseSystem
+from MORALS.systems.system import BaseSystem
 import matplotlib.pyplot as plt
 
 # fix the transform

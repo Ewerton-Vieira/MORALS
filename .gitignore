@@ -2,7 +2,6 @@
 __pycache__
 .ipynb_checkpoints/
 MORALS.egg-info/
-# *data/
 *logs/
 tmp*/
 examples/test.py
