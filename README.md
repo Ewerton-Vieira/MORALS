@@ -7,6 +7,8 @@ Ewerton R. Vieira*, Aravind Sivaramakrishnan*, Sumanth Tangirala, Edgar Granados
 ## Introduction
 _MORALS_ combines autoencoding neural networks with Morse Graphs. It first projects the dynamics of the controlled system into a learned latent space. Then, it constructs a reduced form of Morse Graphs representing the bistability of the underlying dynamics, i.e., detecting when the controller results in a desired versus an undesired behavior.
 
+![alt text](intro-figure.png)
+
 ## Installation
 ```
 pip install MORALS
