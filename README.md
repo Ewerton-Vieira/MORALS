@@ -7,11 +7,7 @@ This package implements autoencoders for high-dimensional dynamical systems. It 
 
 ## Installation
 
-```
-git clone https://github.com/Ewerton-Vieira/MORALS.git
-cd MORALS
-pip install -e .
-```
+pip install MORALS
 
 ## Usage
 The `examples` directory contains an example of how to collect data and train an autoencoder for a some systems. 
