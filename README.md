@@ -15,4 +15,3 @@ pip install -e .
 
 ## Usage
 The `examples` directory contains an example of how to collect data and train an autoencoder for a some systems. 
-

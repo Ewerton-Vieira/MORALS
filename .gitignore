@@ -9,3 +9,4 @@ output/
 models/
 .vscode/
 data/
+dist/
