@@ -7,8 +7,10 @@ Ewerton R. Vieira*, Aravind Sivaramakrishnan*, Sumanth Tangirala, Edgar Granados
 Coming soon.
 
 ## Installation
+This is a development branch. Use the following to install the `MORALS` library in editable mode (ideally in a fresh Anaconda/Virtualenv environment).
 ```
-pip install MORALS
+cd /path/to/MORALS
+pip install -e .
 ```
 
 ## Usage

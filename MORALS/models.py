@@ -2,6 +2,28 @@ from torch import nn
 
 # TODO: Separate parameters for each model?
 
+class PhaseSpaceClassifier(nn.Module):
+    def __init__(self, config):
+        super(PhaseSpaceClassifier, self).__init__()
+        input_shape = config['high_dims']
+        hidden_shape = config['hidden_shape'] if 'hidden_shape' in config else 32
+        num_labels = config['num_labels'] if 'num_labels' in config else 3
+
+        self.classifier = nn.Sequential(
+            nn.Linear(input_shape, hidden_shape),
+            nn.ReLU(True),
+            nn.Linear(hidden_shape, hidden_shape),
+            nn.ReLU(True),
+            nn.Linear(hidden_shape, num_labels),
+        )
+
+        self.softmax = nn.Softmax(dim=1)
+      
+    def forward(self, x):
+        logits = self.classifier(x)
+        probs = self.softmax(logits)
+        return {'logits': logits, 'probs': probs}
+
 class Encoder(nn.Module):
     def __init__(self, config):
         num_layers = config['num_layers'] if 'num_layers' in config else 2

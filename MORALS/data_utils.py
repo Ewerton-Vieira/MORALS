@@ -9,8 +9,14 @@ import os
 
 class DynamicsDataset(Dataset):
     def __init__(self, config):
+        labels_raw = np.loadtxt(config['labels_fname'], delimiter=',', dtype=str)
+        labels_dict = {}
+        for i in range(len(labels_raw)):
+            labels_dict[labels_raw[i,0]] = int(labels_raw[i,1])
+
         Xt = []
         Xnext = []
+        labels = []
 
         step = config['step']
         subsample = config['subsample']
@@ -25,13 +31,16 @@ class DynamicsDataset(Dataset):
             subsampled_data = system.transform(subsampled_data_untransformed)
             Xt.append(subsampled_data[:-step])
             Xnext.append(subsampled_data[step:])
-            # for i in range(subsampled_data.shape[0] - step):
-            #     Xt.append(system.transform(subsampled_data[i]))
-            #     Xnext.append(system.transform(subsampled_data[i + step]))
+            num_pts = len(subsampled_data[:-step])
+            f_labels = [-1.0] * num_pts
+            f_labels[-1] = labels_dict[f]
+            labels.append(f_labels)
 
         self.Xt = np.vstack(Xt)
         self.Xnext = np.vstack(Xnext)
+        self.labels = np.concatenate(labels)
         assert len(self.Xt) == len(self.Xnext), "Xt and Xnext must have the same length"
+        assert len(self.Xt) == len(self.labels), "Xt and labels must have the same length"
 
         # Normalize the data
         if config['use_limits']:
@@ -66,7 +75,7 @@ class DynamicsDataset(Dataset):
         return len(self.Xt)
 
     def __getitem__(self, idx):
-        return self.Xt[idx], self.Xnext[idx]
+        return self.Xt[idx], self.Xnext[idx], self.labels[idx]
 
 class LabelsDataset(Dataset):
     def __init__(self,config):
