@@ -27,6 +27,15 @@ class ClassifierTraining:
         self.model_dir = config["model_dir"]
         self.log_dir = config["log_dir"]
 
+        # Todo: Get this from config
+        self.penalty_matrix = np.array([
+          [0,2,2,2,2],
+          [0,1,2,2,2],
+          [0,0,0,0,0],
+          [2,2,2,1,0],
+          [2,2,2,2,0]
+        ])
+
     def reset_losses(self):
         self.train_losses = {'loss_total': []}
         self.test_losses = {'loss_total': []}
@@ -44,8 +53,16 @@ class ClassifierTraining:
         with open(os.path.join(self.log_dir, 'test_losses.pkl'), 'wb') as f:
             pickle.dump(self.test_losses, f)
     
-    def loss_function(self):
-        raise NotImplementedError
+    def loss_function(self, forward_dict):
+        probs_xt = forward_dict['probs_xt']
+        probs_xnext = forward_dict['probs_xnext']
+
+        loss_xt = torch.mean(torch.sum(-self.penalty_matrix * probs_xt, dim=1))
+        loss_xnext = torch.mean(torch.sum(-self.penalty_matrix * probs_xnext, dim=1))
+
+        loss_total = loss_xt + loss_xnext
+
+        return loss_total
     
     def train(self,epochs=1000,patience=50):
         list_parameters = list(self.classifier.parameters())
@@ -60,8 +77,8 @@ class ClassifierTraining:
             for i, (x_t, x_tau, label) in enumerate(self.train_loader):
                 optimizer.zero_grad()
 
-                forward_dict = self.classifier(x_t.to(self.device))
-                loss = self.loss_function()
+                forward_dict = self.classifier(x_t.to(self.device), x_tau.to(self.device))
+                loss = self.loss_function(forward_dict)
 
                 loss.backward()
                 optimizer.step()
@@ -78,7 +95,7 @@ class ClassifierTraining:
             with torch.no_grad():
                 for i, (x_t, x_tau, label) in enumerate(self.test_loader):
                     forward_dict = self.classifier(x_t.to(self.device), x_tau.to(self.device))
-                    loss = self.loss_function()
+                    loss = self.loss_function(forward_dict)
                     epoch_test_loss += loss.item()
                 
                 epoch_test_loss /= len(self.test_loader)

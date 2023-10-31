@@ -14,15 +14,21 @@ class PhaseSpaceClassifier(nn.Module):
             nn.ReLU(True),
             nn.Linear(hidden_shape, hidden_shape),
             nn.ReLU(True),
-            nn.Linear(hidden_shape, num_labels),
         )
+
+        self.classifier_xt = nn.Linear(hidden_shape, num_labels)
+        self.classifier_xnext = nn.Linear(hidden_shape, num_labels)
 
         self.softmax = nn.Softmax(dim=1)
       
-    def forward(self, x):
-        logits = self.classifier(x)
-        probs = self.softmax(logits)
-        return {'logits': logits, 'probs': probs}
+    def forward(self, xt, xnext):
+        logits_xt = self.classifier(xt)
+        probs_xt = self.softmax(logits_xt)
+
+        logits_xnext = self.classifier(xnext)
+        probs_xnext = self.softmax(logits_xnext)
+
+        return {'logits_xt': logits_xt, 'probs_xt': probs_xt, 'logits_xnext': logits_xnext, 'probs_xnext': probs_xnext}
 
 class Encoder(nn.Module):
     def __init__(self, config):
