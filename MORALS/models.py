@@ -22,10 +22,12 @@ class PhaseSpaceClassifier(nn.Module):
         self.softmax = nn.Softmax(dim=1)
       
     def forward(self, xt, xnext):
-        logits_xt = self.classifier(xt)
+        output_xt = self.classifier(xt)
+        logits_xt = self.classifier_xt(output_xt)
         probs_xt = self.softmax(logits_xt)
 
-        logits_xnext = self.classifier(xnext)
+        output_xnext = self.classifier(xnext)
+        logits_xnext = self.classifier_xnext(output_xnext)
         probs_xnext = self.softmax(logits_xnext)
 
         return {'logits_xt': logits_xt, 'probs_xt': probs_xt, 'logits_xnext': logits_xnext, 'probs_xnext': probs_xnext}
