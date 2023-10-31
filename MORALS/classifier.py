@@ -36,6 +36,8 @@ class ClassifierTraining:
           [2,2,2,2,0]
         ])
 
+        self.penalty_matrix = torch.from_numpy(self.penalty_matrix).float().to(self.device)
+
     def reset_losses(self):
         self.train_losses = {'loss_total': []}
         self.test_losses = {'loss_total': []}
@@ -57,12 +59,10 @@ class ClassifierTraining:
         probs_xt = forward_dict['probs_xt']
         probs_xnext = forward_dict['probs_xnext']
 
-        loss_xt = torch.mean(torch.sum(-self.penalty_matrix * probs_xt, dim=1))
-        loss_xnext = torch.mean(torch.sum(-self.penalty_matrix * probs_xnext, dim=1))
+        loss = -torch.einsum('bi,ij,bj->',probs_xt,self.penalty_matrix,probs_xnext)
+        loss /= probs_xt.shape[0]
 
-        loss_total = loss_xt + loss_xnext
-
-        return loss_total
+        return loss
     
     def train(self,epochs=1000,patience=50):
         list_parameters = list(self.classifier.parameters())
