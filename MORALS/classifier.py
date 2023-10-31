@@ -56,8 +56,8 @@ class ClassifierTraining:
             pickle.dump(self.test_losses, f)
     
     def loss_function(self, forward_dict):
-        probs_xt = forward_dict['probs_xt']
-        probs_xnext = forward_dict['probs_xnext']
+        probs_xt = torch.log(forward_dict['probs_xt'])
+        probs_xnext = torch.log(forward_dict['probs_xnext'])
 
         loss = -torch.einsum('bi,ij,bj->',probs_xt,self.penalty_matrix,probs_xnext)
         loss /= probs_xt.shape[0]
