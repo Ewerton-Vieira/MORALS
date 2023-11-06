@@ -9,6 +9,12 @@ np.random.seed(101193)
 
 import argparse
 
+def is_in_att(x):
+    x = np.array(x)
+    if np.linalg.norm(x - np.array([1.39]+[0]*9)) < 0.1:
+        return True 
+    else:
+        return False
 
 def sample_points(lower_bounds, upper_bounds, num_pts):
     # Sample num_pts in dimension dim, where each
@@ -38,6 +44,9 @@ if __name__ == "__main__":
     parser.add_argument('--save_dir', help='Save directory', type=str, default='/data/bistable')
     parser.add_argument('--system', help='Select the system', type=str, default='bistable')
     parser.add_argument('--sample', help='Samples initial conditions instead of on a grid', type=str, default='random')
+    parser.add_argument('--labels', help='Get labels', action='store_true')
+    parser.add_argument('--horizon', help='Time horizon to get the labels', type=type, default=20)
+    parser.add_argument('--save_labels', help='Save labels file.txt', type=str, default='/data/bistable_success')
 
     args = parser.parse_args()
     
@@ -77,6 +86,7 @@ if __name__ == "__main__":
         os.makedirs(save_dir)
 
     counter = 0
+    labels = str()
     for x in tqdm(X):
         # Get the full trajectory
         traj = [x]
@@ -89,4 +99,19 @@ if __name__ == "__main__":
         
         traj = np.array(traj)
         np.savetxt(f"{save_dir}/{counter}.txt",traj,delimiter=",")
+
+        if args.labels == True:
+            for k in range(args.horizon * num_steps):
+                state_temp = f(state_temp)
+            
+            labels += f"{counter}.txt,"
+            if is_in_att(state_temp):
+                labels += "1\n"
+            else:
+                labels += "0\n"
         counter += 1 
+
+    if args.labels == True:
+        with open(f"{os.getcwd()}{args.save_labels}.txt", 'w') as file:
+            file.write(labels)
+
