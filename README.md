@@ -17,7 +17,7 @@ pip install MORALS
 ## Usage
 
 ### Reproduce experiments from the paper
-1. Download the [Pendulum (LQR) dataset](https://drive.google.com/file/d/1C2SgOQiMpAkpjD-_WJykARZnUYduaL02/view?usp=sharing). (More datasets will be made available upon publication)
+1. Download the [Pendulum (LQR) dataset](https://drive.google.com/file/d/1C2SgOQiMpAkpjD-_WJykARZnUYduaL02/view?usp=sharing) or [Other Robot Controllers](https://archive.cs.rutgers.edu/archive/a/2024/MORALS/).
 2. Extract and place it inside `examples/data/`. There should be a directory `pendulum_lqr1k` and a labels file `pendulum_lqr1k_success.txt`.
 3. Train the autoencoder and latent dynamics networks: `python train.py --config pendulum_lqr.txt`.
 4. Obtain the Morse Graph and the Regions of Attraction (RoAs) for the learned latent space dynamics: `python get_MG_RoA.py --config pendulum_lqr.txt --name_out pendulum_lqr --RoA --sub 16`.
