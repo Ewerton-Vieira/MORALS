@@ -1,8 +1,8 @@
 # MORALS:  *Mo*rse Graph-aided discovery of *R*egions of *A*ttraction in a learned *L*atent *S*pace 
 
-**MORALS: Analysis of High-Dimensional Robot Controllers via Topological Tools in a Latent Space**
-
 Ewerton R. Vieira*, Aravind Sivaramakrishnan*, Sumanth Tangirala, Edgar Granados, Konstantin Mischaikow, Kostas E. Bekris
+
+_2024 IEEE International Conference on Robotics and Automation (ICRA), 2024_. **Best Paper Award in Automation finalist**.
 
 ## Introduction
 _MORALS_ combines autoencoding neural networks with Morse Graphs. It first projects the dynamics of the controlled system into a learned latent space. Then, it constructs a reduced form of Morse Graphs representing the bistability of the underlying dynamics, i.e., detecting when the controller results in a desired versus an undesired behavior.
@@ -30,12 +30,10 @@ pip install MORALS
 ## Bibtex
 If you find this repository useful in your work, please consider citing:
 ```
-@misc{morals2023,
-      title={${\tt MORALS}$: Analysis of High-Dimensional Robot Controllers via Topological Tools in a Latent Space}, 
-      author={Ewerton R. Vieira and Aravind Sivaramakrishnan and Sumanth Tangirala and Edgar Granados and Konstantin Mischaikow and Kostas E. Bekris},
-      year={2023},
-      eprint={2310.03246},
-      archivePrefix={arXiv},
-      primaryClass={cs.RO}
+@inproceedings{morals2024,
+    title={{\tt MORALS}: Analysis of High-Dimensional Robot Controllers via Topological Tools in a Latent Space}, 
+    author={Ewerton R. Vieira* and Aravind Sivaramakrishnan* and Sumanth Tangirala and Edgar Granados and Konstantin Mischaikow and Kostas E. Bekris},
+    booktitle={ICRA},
+    year={2024},
 }
 ```
