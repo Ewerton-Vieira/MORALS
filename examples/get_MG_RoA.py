@@ -135,6 +135,10 @@ def main(args, config, experiment_name):
         latent_space_sample = dyn_utils.encode(dataset.Xt.numpy(), normalize=False)
 
     latent_space_sample = dyn_utils.encode(original_space_sample)
+    # update the bounds using the limits given by the sample
+    lower_bounds = np.min(latent_space_sample, axis=0).tolist()
+    upper_bounds = np.max(latent_space_sample, axis=0).tolist()
+
     print("data on the latent space", latent_space_sample.shape)
     print(latent_space_sample[1])
 
