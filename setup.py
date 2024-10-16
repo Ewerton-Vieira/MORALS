@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup (
     name = "MORALS",
-    version = "0.1.3",
+    version = "0.1.4",
     author = "Aravind Sivaramakrishnan, Ewerton Rocha Vieira, Sumanth Tangirala",
     url = "https://github.com/Ewerton-Vieira/MORALS.git",
     description = "MORALS: Morse Graph-aided discovery of Regions of Attraction in a learned Latent Space",
