@@ -15,7 +15,7 @@
     'num_layers': 2, 
     'data_dir': 'data/pendulum_lqr1k/',
     'labels_fname': 'data/pendulum_lqr1k_success.txt',
-    'model_dir': 'models/pendulum_lqr1k/',
-    'log_dir': 'logs/pendulum_lqr1k/',
-    'output_dir': 'output/pendulum_lqr1k/2',
+    'model_dir': 'output/pendulum_lqr1k/models/',
+    'log_dir': 'output/pendulum_lqr1k/logs/',
+    'output_dir': 'output/pendulum_lqr1k/',
 }

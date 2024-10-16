@@ -42,7 +42,7 @@ def write_experiments(morse_graph, experiment_name, output_dir, name="MG_attract
         file.write(f":{list_attractors},{counting_attractors}\n")
 
 
-def compute_roa(map_graph, morse_graph, lower_bounds, upper_bounds, config, base_name):
+def compute_roa(map_graph, morse_graph, lower_bounds, upper_bounds, output_dir):
 
     startTime = datetime.now()
 
@@ -50,22 +50,16 @@ def compute_roa(map_graph, morse_graph, lower_bounds, upper_bounds, config, base
 
     print(f"Time to build the regions of attraction = {datetime.now() - startTime}")
 
-    roa.dir_path = ""
+    roa.dir_path = os.path.join(os.getcwd(), output_dir)
 
-    roa.save_file(base_name)
+    roa.save_file("MG")
 
     if config['low_dims'] == 2:
 
-        # fig, ax = roa.PlotRoA(name_plot=base_name)
-
-        # plt.savefig(base_name, bbox_inches='tight')
-
-        dir_path = os.path.abspath(os.getcwd()) + "/"
-
         fig, ax = PlotRoA(lower_bounds, upper_bounds,
-                    from_file=base_name, dir_path=dir_path)
+                    from_file="MG", dir_path=output_dir)
 
-        out_pic = roa.dir_path + base_name + "_RoA_"
+        out_pic = os.path.join(os.getcwd(), output_dir, "MG_RoA_")
 
         plt.savefig(out_pic, bbox_inches='tight')
 
@@ -173,7 +167,7 @@ def main(args, config, experiment_name):
 
     if args.RoA:
      
-        compute_roa(map_graph, morse_graph, lower_bounds, upper_bounds, config, base_name)
+        compute_roa(map_graph, morse_graph, lower_bounds, upper_bounds, config['output_dir'])
 
 if __name__ == "__main__":
 
