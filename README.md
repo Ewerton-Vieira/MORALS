@@ -4,6 +4,8 @@ Ewerton R. Vieira*, Aravind Sivaramakrishnan*, Sumanth Tangirala, Edgar Granados
 
 _2024 IEEE International Conference on Robotics and Automation (ICRA), 2024_. **Best Paper Award in Automation finalist**.
 
+[[Website]](https://prx-kinodynamic.github.io/projects/morals) [[Paper]](https://ieeexplore.ieee.org/document/10610383) [[arXiv]](https://arxiv.org/abs/2310.03246)
+
 ## Introduction
 _MORALS_ combines autoencoding neural networks with Morse Graphs. It first projects the dynamics of the controlled system into a learned latent space. Then, it constructs a reduced form of Morse Graphs representing the bistability of the underlying dynamics, i.e., detecting when the controller results in a desired versus an undesired behavior.
 
