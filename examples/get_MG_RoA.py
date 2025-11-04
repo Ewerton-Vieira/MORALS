@@ -50,7 +50,7 @@ def compute_roa(map_graph, morse_graph, lower_bounds, upper_bounds, config, base
 
     print(f"Time to build the regions of attraction = {datetime.now() - startTime}")
 
-    roa.dir_path = ""
+    roa.dir_path = os.getcwd()
 
     roa.save_file(base_name)
 
@@ -60,12 +60,12 @@ def compute_roa(map_graph, morse_graph, lower_bounds, upper_bounds, config, base
 
         # plt.savefig(base_name, bbox_inches='tight')
 
-        dir_path = os.path.abspath(os.getcwd()) + "/"
+        dir_path = os.path.abspath(os.getcwd())
 
         fig, ax = PlotRoA(lower_bounds, upper_bounds,
                     from_file=base_name, dir_path=dir_path)
 
-        out_pic = roa.dir_path + base_name + "_RoA_"
+        out_pic = os.path.join(roa.dir_path, base_name + "_RoA_")
 
         plt.savefig(out_pic, bbox_inches='tight')
 
@@ -127,7 +127,7 @@ def main(args, config, experiment_name):
         #     # original_space_sample = np.array([system.transform(i) for i in original_space_sample])
 
     elif args.validation_type == 'random': # random sample (ideal for high dim space)
-        original_space_sample = system.sample_state(2**(sb + 2))
+        original_space_sample = system.sample_state(2**(sb + 8))
         # original_space_sample = np.array([system.transform(system.sample_state()) for i in range(2**(sb+2))])
 
     else: # sample from trajectories (ideal for large trajectory set)
@@ -140,7 +140,8 @@ def main(args, config, experiment_name):
     upper_bounds = np.max(latent_space_sample, axis=0).tolist()
 
     print("data on the latent space", latent_space_sample.shape)
-    print(latent_space_sample[1])
+    # print(f"sample point on latent space = {latent_space_sample[1]}")
+    print(f"lower_bounds={lower_bounds} \n upper_bounds={upper_bounds}")
 
     valid_grid_latent_space = grid.valid_grid(latent_space_sample)
 
@@ -149,7 +150,7 @@ def main(args, config, experiment_name):
 
     phase_periodic = [False, False]
 
-    K = [1.1 * (1 + args.Lips/100)] * dim_latent_space
+    K = [1 + args.Lips/100] * dim_latent_space
     
     def F(rect):
         return MG_util.BoxMapK_valid(g, rect, K, valid_grid_latent_space, grid.point2cell)
@@ -171,20 +172,24 @@ def main(args, config, experiment_name):
 
     write_experiments(morse_graph, experiment_name, config['output_dir'])
 
+    
     if args.RoA:
      
         compute_roa(map_graph, morse_graph, lower_bounds, upper_bounds, config, base_name)
 
 if __name__ == "__main__":
 
+    config='cell_inter.txt'
+    # config='pendulum_lqr.txt'
+    sub = 14
     parser = argparse.ArgumentParser()
     parser.add_argument('--config_dir',help='Directory of config files',type=str,default='config/')
-    parser.add_argument('--config',help='Config file inside config_dir',type=str,default='pendulum_lqr_1K.txt')
+    parser.add_argument('--config',help='Config file inside config_dir',type=str,default=config)
     parser.add_argument('--name_out',help='Name of the out file',type=str,default='out_exp')
     parser.add_argument('--RoA',help='Compute RoA',action='store_true')
-    parser.add_argument('--sub',help='Select subdivision',type=int,default=14)
+    parser.add_argument('--sub',help='Select subdivision',type=int,default=sub)
     parser.add_argument('--validation_type',help='Select the type of Validation for the lantent discretization',type=str,default='random')
-    parser.add_argument('--Lips',help='increase Lipschitz constant by x%',type=int,default=0)
+    parser.add_argument('--Lips',help='increase Lipschitz constant by x%',type=int,default=10)
 
     args = parser.parse_args()
     config_fname = args.config_dir + args.config
@@ -194,7 +199,9 @@ if __name__ == "__main__":
 
     experiment_name = f"{config['experiment']}&{config['num_layers']}&{config['data_dir'][5::]}&{config['step']}&{args.sub}"
 
-    if os.path.exists(config['model_dir']):
-        main(args, config, experiment_name)
-    else:
-        write_experiments(False, experiment_name, config['output_dir'])
+    main(args, config, experiment_name)
+
+    # if os.path.exists(config['model_dir']):
+    #     main(args, config, experiment_name)
+    # else:
+    #     write_experiments(False, experiment_name, config['output_dir'])

@@ -17,7 +17,10 @@ class DynamicsDataset(Dataset):
         system = get_system(config['system'], config['high_dims'])
         print("Getting data for: ",system.name)
 
-        for f in tqdm(os.listdir(config['data_dir'])):
+        txt_files = [f for f in os.listdir(config['data_dir']) if f.endswith('.txt')]
+
+        # for f in tqdm(os.listdir(config['data_dir'])):
+        for f in tqdm(txt_files):
             data = np.loadtxt(os.path.join(config['data_dir'], f), delimiter=',')
             indices = np.arange(data.shape[0])
             subsampled_indices = indices % subsample == 0
@@ -28,7 +31,6 @@ class DynamicsDataset(Dataset):
             # for i in range(subsampled_data.shape[0] - step):
             #     Xt.append(system.transform(subsampled_data[i]))
             #     Xnext.append(system.transform(subsampled_data[i + step]))
-
         self.Xt = np.vstack(Xt)
         self.Xnext = np.vstack(Xnext)
         assert len(self.Xt) == len(self.Xnext), "Xt and Xnext must have the same length"

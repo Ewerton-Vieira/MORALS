@@ -9,6 +9,7 @@ from MORALS.systems.trifinger import Trifinger
 from MORALS.systems.bistable_rot import Bistable_Rot
 from MORALS.systems.unifinger import Unifinger
 from MORALS.systems.pendulum3links import Pendulum3links
+from MORALS.systems.basic import Basic
 
 def get_system(name, dims=10, **kwargs):
     if name == "pendulum":
@@ -33,6 +34,10 @@ def get_system(name, dims=10, **kwargs):
         system = Unifinger(**kwargs)
     elif name == "pendulum3links":
         system = Pendulum3links(**kwargs)
+    elif name == "":
+        system = Basic(**kwargs)
+    elif name == "basic":
+        system = Basic(**kwargs)
     else:
         print("That system does not exist!")
         raise NotImplementedError

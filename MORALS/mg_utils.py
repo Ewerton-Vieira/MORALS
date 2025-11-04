@@ -24,7 +24,13 @@ class MorseGraphOutputProcessor:
             for i, line in enumerate(lines):
                 if line[0].isalpha():
                     self.indices.append(i)
-            self.box_size = np.array(lines[self.indices[0]+1].split(',')).astype(np.float32)
+            # second line is box_size, lower_bounds and upper_bounds
+            second_line = np.array(lines[self.indices[0]+1].split(',')).astype(np.float32)
+            shape_box = second_line.shape[0]//3 # shape of box_size, lower_bounds and upper_bounds are the same
+            self.box_size = second_line[0:shape_box]
+            lower_bounds = second_line[shape_box:2*shape_box]
+            upper_bounds = second_line[2*shape_box:3*shape_box]
+
             self.morse_nodes_data = np.vstack([np.array(line.split(',')).astype(np.float32) for line in lines[self.indices[1]+1:self.indices[2]]])
             if len(self.indices) >= 2:
                 self.attractor_nodes_data = np.vstack([np.array(line.split(',')).astype(np.float32) for line in lines[self.indices[2]+1:]])
@@ -65,8 +71,6 @@ class MorseGraphOutputProcessor:
                     self.outgoing_edges[a].append(b)
                     self.incoming_edges[b].append(a)
 
-        lower_bounds = [-1.]*self.dims
-        upper_bounds = [1.]*self.dims
         latent_space_area = np.prod(np.array(upper_bounds) - np.array(lower_bounds))
         box_area = np.prod(self.box_size)
         subdivisions = np.log2(latent_space_area/box_area)
@@ -85,6 +89,11 @@ class MorseGraphOutputProcessor:
         return morse_node_nodes[:, 2:]
     
     def which_morse_node(self, point):
-        assert point.shape[0] == self.dims
-        found = self.corner_points[self.grid.point2indexCMGDB(point)]
+        if point.shape[0] != self.dims:
+            raise ValueError(f"Expected point of dimension {self.dims}, got {point.shape[0]}")
+        idx = self.grid.point2indexCMGDB(point)
+        try:
+            found = self.corner_points[idx]
+        except KeyError:
+            found = None
         return found

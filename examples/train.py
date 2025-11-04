@@ -44,12 +44,8 @@ def check_collapse(encoder, dataset):
     print("\033[91m Collapse\033[00m")
     return True
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--config_dir',help='Directory of config files',type=str,default='config/')
-    parser.add_argument('--config',help='Config file inside config_dir',type=str,default='bistable.txt')
-    parser.add_argument('--verbose',help='Print training output',action='store_true')
-    parser.add_argument('--collapse',help='Check for collapse',action='store_true')
+def main(parser):
+
 
 
     args = parser.parse_args()
@@ -65,7 +61,7 @@ def main():
     
     np.random.seed(config["seed"])
 
-    dynamics_train_size = int(0.8*len(dynamics_dataset))
+    dynamics_train_size = int(args.splitting_data*len(dynamics_dataset))
     dynamics_test_size = len(dynamics_dataset) - dynamics_train_size
     dynamics_train_dataset, dynamics_test_dataset = torch.utils.data.random_split(dynamics_dataset, [dynamics_train_size, dynamics_test_size])
     dynamics_train_loader = DataLoader(dynamics_train_dataset, batch_size=config["batch_size"], shuffle=True)
@@ -115,4 +111,11 @@ def main():
     trainer.save_models()    
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--config_dir',help='Directory of config files',type=str,default='config/')
+    parser.add_argument('--config',help='Config file inside config_dir',type=str,default='cell_inter.txt')
+    parser.add_argument('--verbose',help='Print training output',action='store_true')
+    parser.add_argument('--collapse',help='Check for collapse',action='store_true')
+    parser.add_argument('--splitting_data',help='Set proportion to split train-test data',type=float, default=0.998)
+
+    main(parser)
