@@ -61,7 +61,8 @@ class Decoder(nn.Module):
         return x
 
 class LatentDynamics(nn.Module):
-    # Takes as input an encoding and returns a latent dynamics
+    # Takes as input an encoding and returns a latels
+    # nt dynamics
     # vector which is just another encoding
     def __init__(self, config):
         num_layers = config['num_layers'] if 'num_layers' in config else 2

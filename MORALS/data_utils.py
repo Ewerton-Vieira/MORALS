@@ -6,9 +6,18 @@ from torch.utils.data import Dataset
 from MORALS.systems.utils import get_system
 import torch
 import os
+import json
+
+
+def load_achieved_bounds(dataset_description_fname):
+    """Load achieved_bounds from dataset_description.json"""
+    with open(dataset_description_fname, 'r') as f:
+        desc = json.load(f)
+    return desc.get('achieved_bounds', {}), desc.get('data_format', {}).get('trajectory_files', {}).get('state_order',
+           desc.get('state_space', {}).get('state_order', []))
 
 class DynamicsDataset(Dataset):
-    def __init__(self, config):
+    def __init__(self, config, file_list=None):
         Xt = []
         Xnext = []
 
@@ -17,7 +26,13 @@ class DynamicsDataset(Dataset):
         system = get_system(config['system'], config['high_dims'])
         print("Getting data for: ",system.name)
 
-        txt_files = [f for f in os.listdir(config['data_dir']) if f.endswith('.txt')]
+        # If file_list is provided, use it; otherwise, load all txt files from data_dir
+        if file_list is not None:
+            txt_files = file_list
+            print(f"Loading {len(txt_files)} specified trajectory files")
+        else:
+            txt_files = [f for f in os.listdir(config['data_dir']) if f.endswith('.txt')]
+            print(f"Loading all {len(txt_files)} trajectory files from directory")
 
         # for f in tqdm(os.listdir(config['data_dir'])):
         for f in tqdm(txt_files):
@@ -28,6 +43,14 @@ class DynamicsDataset(Dataset):
             subsampled_data = system.transform(subsampled_data_untransformed)
             Xt.append(subsampled_data[:-step])
             Xnext.append(subsampled_data[step:])
+
+            if config.get('use_synthetic_attractors', False):
+                # Synthetic attractor pairs: final state acts as fixed point
+                final_state = subsampled_data[-1:]
+                tail_states = subsampled_data[-(step):]
+                final_repeated = np.repeat(final_state, len(tail_states), axis=0)
+                Xt.append(tail_states)
+                Xnext.append(final_repeated)
             # for i in range(subsampled_data.shape[0] - step):
             #     Xt.append(system.transform(subsampled_data[i]))
             #     Xnext.append(system.transform(subsampled_data[i + step]))
@@ -35,11 +58,46 @@ class DynamicsDataset(Dataset):
         self.Xnext = np.vstack(Xnext)
         assert len(self.Xt) == len(self.Xnext), "Xt and Xnext must have the same length"
 
-        # Normalize the data
-        if config['use_limits']:
+        # Normalize the data - only normalize dimensions in system.normalize_indices
+        # Get normalize_indices from system (defaults to all dimensions for backwards compatibility)
+        normalize_indices = getattr(system, 'normalize_indices', list(range(self.Xt.shape[1])))
+
+        # Determine normalization method: 'data' (old) or 'dataset_description' (new)
+        # Default to 'data' for backwards compatibility
+        normalization_method = config.get('normalization_method', 'data')
+
+        if normalization_method == 'dataset_description' and 'dataset_description_fname' in config:
+            # Load achieved_bounds from dataset_description.json
+            achieved_bounds, state_order = load_achieved_bounds(config['dataset_description_fname'])
+            print(f"Using achieved_bounds from {config['dataset_description_fname']}")
+            print(f"State order: {state_order}")
+            print(f"Normalizing indices: {normalize_indices}")
+
+            # Initialize X_min and X_max for transformed space
+            transformed_dim = self.Xt.shape[1]
+            self.X_min = np.zeros(transformed_dim)
+            self.X_max = np.ones(transformed_dim)
+
+            # Build mapping from raw state index to achieved_bounds
+            raw_bounds_min = []
+            raw_bounds_max = []
+            for state_name in state_order:
+                if state_name in achieved_bounds:
+                    raw_bounds_min.append(achieved_bounds[state_name]['min'])
+                    raw_bounds_max.append(achieved_bounds[state_name]['max'])
+                else:
+                    # Fallback for unmapped states
+                    raw_bounds_min.append(-1.0)
+                    raw_bounds_max.append(1.0)
+
+            # Get bounds for normalized dimensions based on system type
+            # This maps transformed indices to their normalization bounds
+            self._set_normalization_bounds(system, normalize_indices, raw_bounds_min, raw_bounds_max, state_order)
+
+        elif config['use_limits']:
             raise NotImplementedError
         else:
-            # Get bounds from the max of both Xt and Xnext
+            # Legacy: Get bounds from the max of both Xt and Xnext
             self.X_min = np.min(np.concatenate((self.Xt, self.Xnext), axis=0), axis=0)
             self.X_max = np.max(np.concatenate((self.Xt, self.Xnext), axis=0), axis=0)
 
@@ -48,9 +106,11 @@ class DynamicsDataset(Dataset):
                 print("Warning: X_min and X_max are the same for dimension ", i)
                 self.X_min[i] -= 1
                 self.X_max[i] += 1
-        
-        self.Xt = (self.Xt - self.X_min) / (self.X_max - self.X_min)
-        self.Xnext = (self.Xnext - self.X_min) / (self.X_max - self.X_min)
+
+        # Apply normalization only to specified indices
+        for i in normalize_indices:
+            self.Xt[:, i] = (self.Xt[:, i] - self.X_min[i]) / (self.X_max[i] - self.X_min[i])
+            self.Xnext[:, i] = (self.Xnext[:, i] - self.X_min[i]) / (self.X_max[i] - self.X_min[i])
 
         # If model_dir does nto exist, create it
         if not os.path.exists(config['model_dir']):
@@ -64,6 +124,59 @@ class DynamicsDataset(Dataset):
         self.Xt = torch.from_numpy(self.Xt).float()
         self.Xnext = torch.from_numpy(self.Xnext).float()
 
+    def _set_normalization_bounds(self, system, normalize_indices, raw_bounds_min, raw_bounds_max, state_order):
+        """Set X_min and X_max for normalized dimensions based on system type and achieved_bounds."""
+        system_name = system.name
+
+        if system_name == "pendulum":
+            # Raw: [theta, theta_dot] -> Transformed: [x, y, xdot, ydot]
+            # Normalize indices: [2, 3] (xdot, ydot)
+            # xdot, ydot depend on theta_dot: max = l * |theta_dot_max|
+            l = getattr(system, 'l', 0.5)
+            theta_dot_idx = state_order.index('theta_dot') if 'theta_dot' in state_order else 1
+            theta_dot_max = max(abs(raw_bounds_min[theta_dot_idx]), abs(raw_bounds_max[theta_dot_idx]))
+            for i in normalize_indices:
+                self.X_min[i] = -l * theta_dot_max
+                self.X_max[i] = l * theta_dot_max
+
+        elif system_name == "cartpole_pybullet":
+            # Raw: [x, theta, x_dot, theta_dot] -> Transformed: [x, cos, sin, x_dot, theta_dot]
+            # Normalize indices: [0, 3, 4]
+            idx_map = {0: 'x', 3: 'x_dot', 4: 'theta_dot'}
+            for trans_idx, raw_name in idx_map.items():
+                if trans_idx in normalize_indices and raw_name in state_order:
+                    raw_idx = state_order.index(raw_name)
+                    self.X_min[trans_idx] = raw_bounds_min[raw_idx]
+                    self.X_max[trans_idx] = raw_bounds_max[raw_idx]
+
+        elif system_name == "quadrotor2D":
+            # Raw: [x, z, theta, x_dot, z_dot, theta_dot] -> Transformed: [x, z, sin, cos, x_dot, z_dot, theta_dot]
+            # Normalize indices: [0, 1, 4, 5, 6]
+            idx_map = {0: 'x', 1: 'z', 4: 'x_dot', 5: 'z_dot', 6: 'theta_dot'}
+            for trans_idx, raw_name in idx_map.items():
+                if trans_idx in normalize_indices and raw_name in state_order:
+                    raw_idx = state_order.index(raw_name)
+                    self.X_min[trans_idx] = raw_bounds_min[raw_idx]
+                    self.X_max[trans_idx] = raw_bounds_max[raw_idx]
+
+        elif system_name == "quadrotor3D":
+            # Raw = Transformed: [x, y, z, qw, qx, qy, qz, x_dot, y_dot, z_dot, p, q, r]
+            # Normalize indices: [0, 1, 2, 7, 8, 9, 10, 11, 12]
+            idx_map = {0: 'x', 1: 'y', 2: 'z', 7: 'x_dot', 8: 'y_dot', 9: 'z_dot', 10: 'p', 11: 'q', 12: 'r'}
+            for trans_idx, raw_name in idx_map.items():
+                if trans_idx in normalize_indices and raw_name in state_order:
+                    raw_idx = state_order.index(raw_name)
+                    self.X_min[trans_idx] = raw_bounds_min[raw_idx]
+                    self.X_max[trans_idx] = raw_bounds_max[raw_idx]
+
+        else:
+            # Fallback: use all dimensions from achieved_bounds (legacy behavior)
+            print(f"Warning: No specific normalization mapping for system {system_name}, using raw bounds")
+            for i in normalize_indices:
+                if i < len(raw_bounds_min):
+                    self.X_min[i] = raw_bounds_min[i]
+                    self.X_max[i] = raw_bounds_max[i]
+
     def __len__(self):
         return len(self.Xt)
 
@@ -71,16 +184,25 @@ class DynamicsDataset(Dataset):
         return self.Xt[idx], self.Xnext[idx]
 
 class LabelsDataset(Dataset):
-    def __init__(self,config):
-        labels = np.loadtxt(config['labels_fname'], delimiter=',', dtype=str)
-        labels_dict = {}
-        for i in range(len(labels)):
-            labels_dict[labels[i,0]] = int(labels[i,1])
+    def __init__(self, config, file_list=None, labels_list=None):
+        # If file_list and labels_list are provided directly, use them
+        if file_list is not None and labels_list is not None:
+            print(f"Loading {len(file_list)} specified files with provided labels")
+            files_to_load = file_list
+            labels_dict = {f: label for f, label in zip(file_list, labels_list)}
+        else:
+            # Legacy behavior: load labels from labels_fname and scan directory
+            labels = np.loadtxt(config['labels_fname'], delimiter=',', dtype=str)
+            labels_dict = {}
+            for i in range(len(labels)):
+                labels_dict[labels[i,0]] = int(labels[i,1])
+            files_to_load = os.listdir(config['data_dir'])
+            print(f"Loading all files from directory with labels from {config['labels_fname']}")
 
         self.final_points = []
         self.labels = []
 
-        for f in tqdm(os.listdir(config['data_dir'])):
+        for f in tqdm(files_to_load):
             data = np.loadtxt(os.path.join(config['data_dir'], f), delimiter=',')
             self.final_points.append(data[-1])
             try:
@@ -94,7 +216,11 @@ class LabelsDataset(Dataset):
         self.final_points = system.transform(self.final_points)
         X_max = np.loadtxt(os.path.join(config['model_dir'], 'X_max.txt'), delimiter=',')
         X_min = np.loadtxt(os.path.join(config['model_dir'], 'X_min.txt'), delimiter=',')
-        self.final_points = (self.final_points - X_min) / (X_max - X_min)
+
+        # Apply normalization only to specified indices (consistent with DynamicsDataset)
+        normalize_indices = getattr(system, 'normalize_indices', list(range(self.final_points.shape[1])))
+        for i in normalize_indices:
+            self.final_points[:, i] = (self.final_points[:, i] - X_min[i]) / (X_max[i] - X_min[i])
         self.final_points = torch.from_numpy(self.final_points).float()
 
         self.labels = np.array(self.labels)
@@ -134,6 +260,7 @@ class LabelsDataset(Dataset):
         # Getting the points present in the batch of pairs
         unique_indices = np.unique(pairs)
         x_batch = self.final_points[unique_indices]
+        batch_labels = self.labels[unique_indices]
         orig_indices_vs_new_indices = {orig_idx: new_idx for new_idx, orig_idx in enumerate(unique_indices)}
 
         # Updating the indices of the triplets to match the indices of the points in the batch
@@ -144,11 +271,11 @@ class LabelsDataset(Dataset):
             updated_success_indices.append(orig_indices_vs_new_indices[success_idx])
             updated_failure_indices.append(orig_indices_vs_new_indices[failure_idx])
 
-        return {"successes": updated_success_indices, "failures": updated_failure_indices}, x_batch
+        return {"successes": updated_success_indices, "failures": updated_failure_indices}, x_batch, batch_labels
 
 class TrajectoryDataset:
     # Useful for plotting
-    def __init__(self, config):
+    def __init__(self, config, file_list=None, labels_list=None):
         self.trajs = []
         subsample = config['subsample']
 
@@ -158,16 +285,52 @@ class TrajectoryDataset:
         self.labels_dict = {}
         self.labels = []
 
-        labels_fname = config['labels_fname']
+        labels_fname = config.get('labels_fname', None)
 
-        if labels_fname is not None:
-            labels = np.loadtxt(labels_fname, delimiter=',', dtype=str)
-            # Create dict with key as fname and value as label
-            for i in range(len(labels)):
-                self.labels_dict[labels[i,0]] = int(labels[i,1])
+        # Determine which files to load and their labels
+        if file_list is not None and labels_list is not None:
+            # Use provided file list and labels
+            print(f"Loading {len(file_list)} specified trajectory files with provided labels")
+            files_to_load = file_list
+            self.labels_dict = {f: label for f, label in zip(file_list, labels_list)}
+        elif labels_fname is not None:
+            # Check if we're using the new roa_labels.txt format (state1, state2, ..., label)
+            # or the old format (filename, label)
+            try:
+                labels_data = np.loadtxt(labels_fname, delimiter=',')
+                if labels_data.ndim == 2 and labels_data.shape[1] > 2:
+                    # New format: <state1> <state2> ... <label>
+                    # Need shuffled_indices to map rows to filenames
+                    if 'shuffled_indices_fname' in config:
+                        print(f"Loading labels from new format: {labels_fname}")
+                        with open(config['shuffled_indices_fname'], 'r') as f:
+                            shuffled_files = [line.strip() for line in f.readlines()]
+                        labels = labels_data[:, -1].astype(int)
+                        self.labels_dict = {f: label for f, label in zip(shuffled_files, labels)}
+                        files_to_load = shuffled_files
+                        print(f"Loaded {len(files_to_load)} files from shuffled indices")
+                    else:
+                        raise ValueError("New roa_labels.txt format requires 'shuffled_indices_fname' in config")
+                else:
+                    # Old format: filename, label
+                    print(f"Loading labels from old format: {labels_fname}")
+                    labels = np.loadtxt(labels_fname, delimiter=',', dtype=str)
+                    for i in range(len(labels)):
+                        self.labels_dict[labels[i,0]] = int(labels[i,1])
+                    files_to_load = os.listdir(config['data_dir'])
+            except Exception as e:
+                print(f"Warning: Could not parse labels file: {e}")
+                files_to_load = os.listdir(config['data_dir'])
+        else:
+            # No labels provided
+            print("No labels provided, loading all files from directory")
+            files_to_load = os.listdir(config['data_dir'])
 
-        for f in tqdm(os.listdir(config['data_dir'])):
-            raw_data = np.loadtxt(os.path.join(config['data_dir'], f), delimiter=',')
+        for f in tqdm(files_to_load):
+            file_path = os.path.join(config['data_dir'], f)
+            if not os.path.isfile(file_path):
+                continue
+            raw_data = np.loadtxt(file_path, delimiter=',')
             if len(raw_data) == 0: continue
             indices = np.arange(raw_data.shape[0])
             subsampled_indices = indices % subsample == 0

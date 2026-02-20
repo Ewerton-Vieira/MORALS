@@ -10,3 +10,4 @@ models/
 .vscode/
 data/
 dist/
+.env/*

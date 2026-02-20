@@ -8,6 +8,8 @@ from tqdm import tqdm
 import pickle
 import argparse
 import torch
+import os
+import shutil
 
 from torch.utils.data import DataLoader
 
@@ -49,34 +51,113 @@ def main(parser):
 
 
     args = parser.parse_args()
-    config_fname = args.config_dir + args.config
+    # Support both full path and filename in config_dir
+    if os.path.isabs(args.config) or os.path.exists(args.config):
+        config_fname = args.config
+    else:
+        config_fname = os.path.join(args.config_dir, args.config)
 
     with open(config_fname) as f:
         config = eval(f.read())
+
+    # Construct output directories
+    if 'output_dir_name' in config:
+        output_dir = f"{config['output_dir_prefix']}/{config['output_dir_name']}"
+    elif 'output_dir_prefix' in config:
+        output_dir = f"{config['output_dir_prefix']}/{config['num_train_trajectories']}_{config['experiment']}"
+    if 'output_dir_prefix' in config:
+        config['output_dir'] = output_dir + '/'
+        config['model_dir'] = output_dir + '/models/'
+        config['log_dir'] = output_dir + '/logs/'
+
+    output_dir = config['output_dir']
+
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    if not os.path.exists(config['model_dir']):
+        os.makedirs(config['model_dir'])
+    if not os.path.exists(config['log_dir']):
+        os.makedirs(config['log_dir'])
+
+    # Save the updated config (with expanded paths) to the output directory
+    with open(os.path.join(output_dir, 'config.txt'), 'w') as f:
+        f.write(str(config))
     
     torch.manual_seed(config["seed"])
-    
-    dynamics_dataset = DynamicsDataset(config)
-    
-    
-    np.random.seed(config["seed"])
 
-    dynamics_train_size = int(args.splitting_data*len(dynamics_dataset))
-    dynamics_test_size = len(dynamics_dataset) - dynamics_train_size
-    dynamics_train_dataset, dynamics_test_dataset = torch.utils.data.random_split(dynamics_dataset, [dynamics_train_size, dynamics_test_size])
-    dynamics_train_loader = DataLoader(dynamics_train_dataset, batch_size=config["batch_size"], shuffle=True)
-    dynamics_test_loader = DataLoader(dynamics_test_dataset, batch_size=config["batch_size"], shuffle=True)
+    # Check if we're using indexed dataset splitting (new format)
+    if "shuffled_indices_fname" in config.keys():
+        print("Using indexed dataset splitting based on shuffled_indices.txt")
 
-    if "labels_fname" in config.keys(): 
-        labels_dataset = LabelsDataset(config)
-        labels_train_size = int(0.8 * len(labels_dataset))
-        labels_test_size = len(labels_dataset) - labels_train_size
-        labels_train_dataset, labels_test_dataset = torch.utils.data.random_split(labels_dataset, [labels_train_size, labels_test_size])
-        labels_train_loader = DataLoader(labels_train_dataset, batch_size=config["batch_size"], shuffle=True, collate_fn=labels_dataset.collate_fn)
-        labels_test_loader = DataLoader(labels_test_dataset, batch_size=config["batch_size"], shuffle=True, collate_fn=labels_dataset.collate_fn)
+        # Load shuffled indices file
+        with open(config["shuffled_indices_fname"], 'r') as f:
+            shuffled_files = [line.strip() for line in f.readlines()]
+
+        # Load labels file - supports both single-column (just labels) and multi-column formats
+        roa_labels_data = np.loadtxt(config["labels_fname"], delimiter=',')
+        if roa_labels_data.ndim == 1:
+            # Single column: just labels (e.g., shuffled_labels_0.txt)
+            labels = roa_labels_data.astype(int)
+        else:
+            # Multi-column: last column is the label (e.g., roa_labels.txt with state+label)
+            labels = roa_labels_data[:, -1].astype(int)
+
+        # Get train/val/test split sizes
+        num_train = config.get("num_train_trajectories", 1000)
+        num_val = config.get("num_val_trajectories", 100)
+
+        # Split the files and labels
+        train_files = shuffled_files[:num_train]
+        train_labels = labels[:num_train]
+
+        val_files = shuffled_files[num_train:num_train+num_val]
+        val_labels = labels[num_train:num_train+num_val]
+
+        print(f"Training on {len(train_files)} trajectories")
+        print(f"Validating on {len(val_files)} trajectories (for early stopping)")
+        print(f"Total test set size: {len(shuffled_files) - num_train} trajectories (validation + remaining)")
+
+        # Create datasets with specific file lists
+        # During training, use validation set for early stopping
+        dynamics_train_dataset = DynamicsDataset(config, file_list=train_files)
+        dynamics_test_dataset = DynamicsDataset(config, file_list=val_files)
+
+        dynamics_train_loader = DataLoader(dynamics_train_dataset, batch_size=config["batch_size"], shuffle=True)
+        dynamics_test_loader = DataLoader(dynamics_test_dataset, batch_size=config["batch_size"], shuffle=True)
+
+        if "labels_fname" in config.keys():
+            labels_train_dataset = LabelsDataset(config, file_list=train_files, labels_list=train_labels)
+            labels_test_dataset = LabelsDataset(config, file_list=val_files, labels_list=val_labels)
+
+            labels_train_loader = DataLoader(labels_train_dataset, batch_size=config["batch_size"], shuffle=True, collate_fn=labels_train_dataset.collate_fn)
+            labels_test_loader = DataLoader(labels_test_dataset, batch_size=config["batch_size"], shuffle=True, collate_fn=labels_test_dataset.collate_fn)
+        else:
+            labels_train_loader = dynamics_train_loader
+            labels_test_loader = dynamics_test_loader
     else:
-        labels_train_loader = dynamics_train_loader
-        labels_test_loader = dynamics_test_loader
+        # Legacy behavior: random splitting
+        print("Using legacy random dataset splitting")
+
+        dynamics_dataset = DynamicsDataset(config)
+
+        np.random.seed(config["seed"])
+
+        dynamics_train_size = int(args.splitting_data*len(dynamics_dataset))
+        dynamics_test_size = len(dynamics_dataset) - dynamics_train_size
+        dynamics_train_dataset, dynamics_test_dataset = torch.utils.data.random_split(dynamics_dataset, [dynamics_train_size, dynamics_test_size])
+        dynamics_train_loader = DataLoader(dynamics_train_dataset, batch_size=config["batch_size"], shuffle=True)
+        dynamics_test_loader = DataLoader(dynamics_test_dataset, batch_size=config["batch_size"], shuffle=True)
+
+        if "labels_fname" in config.keys():
+            labels_dataset = LabelsDataset(config)
+            labels_train_size = int(0.8 * len(labels_dataset))
+            labels_test_size = len(labels_dataset) - labels_train_size
+            labels_train_dataset, labels_test_dataset = torch.utils.data.random_split(labels_dataset, [labels_train_size, labels_test_size])
+            labels_train_loader = DataLoader(labels_train_dataset, batch_size=config["batch_size"], shuffle=True, collate_fn=labels_dataset.collate_fn)
+            labels_test_loader = DataLoader(labels_test_dataset, batch_size=config["batch_size"], shuffle=True, collate_fn=labels_dataset.collate_fn)
+        else:
+            labels_train_loader = dynamics_train_loader
+            labels_test_loader = dynamics_test_loader
 
 
     if args.verbose:
@@ -112,9 +193,9 @@ def main(parser):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config_dir',help='Directory of config files',type=str,default='config/')
-    parser.add_argument('--config',help='Config file inside config_dir',type=str,default='cell_inter.txt')
-    parser.add_argument('--verbose',help='Print training output',action='store_true')
+    parser.add_argument('--config',help='Path to config file (can be full path or filename in config_dir)',type=str,required=True)
+    parser.add_argument('--config_dir',help='Directory of config files (only used if --config is not a full path)',type=str,default='config/')
+    parser.add_argument('--verbose',help='Print training output',action='store_true', default=True)
     parser.add_argument('--collapse',help='Check for collapse',action='store_true')
     parser.add_argument('--splitting_data',help='Set proportion to split train-test data',type=float, default=0.998)
 
