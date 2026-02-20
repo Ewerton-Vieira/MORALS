@@ -11,3 +11,5 @@ models/
 data/
 dist/
 .env/*
+env/
+archived_output/
