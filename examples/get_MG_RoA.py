@@ -97,31 +97,27 @@ def cell_id_to_rect(cell_id, grid):
     lower_bounds = grid.lower_bounds
     size_of_box = grid.size_of_box
 
-    # Decode cell_id to coordinates using the bit-interleaving scheme
-    # This is the inverse of Grid.get_id_vertex
-    coords = [0] * dim
-    temp_id = cell_id
-
-    # The encoding iterates count from subdivision down to 1
-    # At each step: j = (count-1) % dim, id gets bit from coords[j]
-    # We reverse this: extract bits in order and assign to coords
+    # Decode cell_id to coordinates using the bit-interleaving scheme.
+    # This is the inverse of Grid.get_id_vertex, which encodes by iterating
+    # count from subdivision down to 1, extracting the current LSB of
+    # position_temp[j] and shifting right. The first extracted bit (LSB of
+    # the coordinate) ends up as the MSB of the id. To invert, we extract
+    # bits from the id LSB-first and place them at reversed bit positions
+    # within each coordinate.
     subdivision = grid.subdivision
     bits_per_dim = [0] * dim
     for count in range(1, subdivision + 1):
         j = (count - 1) % dim
         bits_per_dim[j] += 1
 
-    # Now extract bits from cell_id
-    # The last bit extracted corresponds to count=1, j=0
-    # We need to reverse the process
+    coords = [0] * dim
+    visit_count = [0] * dim
     temp_id = cell_id
     for count in range(1, subdivision + 1):
         j = (count - 1) % dim
         bit = temp_id & 1
-        # This bit contributes to coordinate j
-        # The bit position depends on how many bits for j we've processed
-        # Actually, let's just compute position directly
-        coords[j] = coords[j] | (bit << ((count - 1) // dim))
+        coords[j] = coords[j] | (bit << (bits_per_dim[j] - 1 - visit_count[j]))
+        visit_count[j] += 1
         temp_id >>= 1
 
     # Now coords[j] contains the cell coordinate for dimension j
@@ -393,24 +389,31 @@ def expand_cell_ids(cell_ids, grid, expansion=1):
     subdivision = grid.subdivision
     total_cells = 2 ** subdivision
 
-    # Decode each cell_id to grid coordinates
+    # Decode each cell_id to grid coordinates (inverse of get_id_vertex)
+    bits_per_dim = [0] * dim
+    for count in range(1, subdivision + 1):
+        j = (count - 1) % dim
+        bits_per_dim[j] += 1
+
     def cell_id_to_coords(cell_id):
         coords = [0] * dim
+        visit_count = [0] * dim
         temp_id = cell_id
         for count in range(1, subdivision + 1):
             j = (count - 1) % dim
             bit = temp_id & 1
-            coords[j] = coords[j] | (bit << ((count - 1) // dim))
+            coords[j] = coords[j] | (bit << (bits_per_dim[j] - 1 - visit_count[j]))
+            visit_count[j] += 1
             temp_id >>= 1
         return coords
 
     def coords_to_cell_id(coords):
+        position_temp = list(coords)
         cell_id = 0
         for count in range(subdivision, 0, -1):
             j = (count - 1) % dim
-            bit_pos = (count - 1) // dim
-            bit = (coords[j] >> bit_pos) & 1
-            cell_id = (cell_id << 1) | bit
+            cell_id = (cell_id << 1) | (position_temp[j] & 1)
+            position_temp[j] >>= 1
         return cell_id
 
     # Get number of cells per dimension
